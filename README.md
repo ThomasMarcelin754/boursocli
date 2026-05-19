@@ -61,6 +61,29 @@ keychain de l'OS, bi-domaine `clients.boursobank.com` +
   config de l'OS, mode `0600`, dans un dossier `0700`, écriture atomique).
   `config show` masque tout.
 
+### Durabilité de session (espacer les reconnexions)
+
+BoursoBank est sous DSP2/SCA : aucune session n'est éternelle et **aucune
+reconnexion ne peut être scriptée** (anti-bot + clavier-image + SCA hors-bande).
+On ne *supprime* pas la reconnexion — on l'**espace au maximum** et on la rend
+indolore, via le mécanisme prévu par la banque :
+
+1. **Cocher « Se souvenir de moi » à la connexion.** Cela émet le cookie
+   `rememberme` : ce navigateur devient un *appareil de confiance* et les
+   sessions suivantes raccourcissent/sautent le SCA. C'est le plus gros levier.
+2. **Profil Chrome dédié et stable** (utilisé seulement pour BoursoBank, jamais
+   nettoyé) : le `rememberme` y survit longtemps. Épinglez-le une fois :
+   ```sh
+   boursobank config set chrome_profile "Profile 9"   # nom ou chemin
+   ```
+3. **Sans profil épinglé**, le CLI **auto-sélectionne** le profil dont la
+   session BoursoBank est la plus fraîche (scan de tous les profils Chrome,
+   métadonnées seules) — fini la loterie entre profils.
+
+Quand la session meurt malgré tout : reconnectez-vous **une fois** dans ce
+profil (en cochant « Se souvenir de moi »), puis `--refresh`. C'est le maximum
+de durabilité que la DSP2 autorise — aucun raccourci n'existe.
+
 ## Utilisation
 
 La sortie est **agent-first** : JSON sur stdout par défaut, diagnostics sur
