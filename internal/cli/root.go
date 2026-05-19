@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/thomasmarcelin754/boursobank/internal/auth"
@@ -102,9 +103,22 @@ func session(ctx context.Context) (*client.Client, *config.Config, string, error
 			}
 		}
 		cfg.Bearer, cfg.UserHash = c.Bearer, c.UserHash
+		cfg.BearerSavedAt = time.Now().UTC().Format(time.RFC3339)
 		_ = cfg.Save(cfgPath)
 	} else {
 		c.Bearer, c.UserHash = cfg.Bearer, cfg.UserHash
+		// Opportunistic keep-warm: past ~half the bearer life, proactively
+		// renew the session server-side so an idle-but-alive session doesn't
+		// lapse between uses. Best-effort — a hard-dead session is still
+		// caught reactively with the proper reconnect message (cannot beat a
+		// hard server expiry; this only extends a still-alive session).
+		if t, e := time.Parse(time.RFC3339, cfg.BearerSavedAt); e == nil && time.Since(t) > 12*time.Hour {
+			out.Debugf("bearer âgé de ~%s — refresh proactif (keep-warm)", time.Since(t).Round(time.Hour))
+			if err := c.Refresh(ctx); err == nil {
+				cfg.BearerSavedAt = time.Now().UTC().Format(time.RFC3339)
+				_ = cfg.Save(cfgPath)
+			}
+		}
 	}
 	return c, cfg, cfgPath, nil
 }

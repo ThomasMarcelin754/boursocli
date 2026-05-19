@@ -55,8 +55,10 @@ async function scoreProfile(dbFile, dom) {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'bb-scan-'));
   try {
     const cp = path.join(tmp, 'C');
-    await fs.copyFile(dbFile, cp);
-    const db = new sqlite.DatabaseSync(cp, { readOnly: true });
+    await snapshotDb(dbFile, cp); // + -wal/-shm so the score sees the live state
+    // Not readOnly: the temp copy is disposable; writable lets SQLite apply
+    // the WAL so MAX(last_update_utc) reflects the freshest session.
+    const db = new sqlite.DatabaseSync(cp);
     try {
       // last_update_utc is a Chrome epoch (~1.3e16 µs) — too large for a JS
       // Number; read it as TEXT and compare as BigInt.
@@ -101,6 +103,18 @@ async function ensure(p) {
   return p;
 }
 
+// Snapshot a Chromium cookie DB to `dest`, INCLUDING its `-wal`/`-shm`
+// sidecars. Chrome runs the Cookies DB in WAL mode; copying only the main
+// file loses committed-but-not-checkpointed writes → a stale read ("fresh
+// cookies in Chrome but the tool sees old ones"). Mirrors steipete
+// sweet-cookie / sweetcookie. Best-effort: sidecars may legitimately absent.
+async function snapshotDb(src, dest) {
+  await fs.copyFile(src, dest);
+  for (const sfx of ['-wal', '-shm']) {
+    try { await fs.copyFile(src + sfx, dest + sfx); } catch { /* sidecar absent = already checkpointed */ }
+  }
+}
+
 async function readStdin() {
   return new Promise((res, rej) => { let d = ''; process.stdin.setEncoding('utf8'); process.stdin.on('data', c => d += c); process.stdin.on('end', () => res(d)); process.stdin.on('error', rej); });
 }
@@ -113,7 +127,7 @@ async function main() {
   const explicit = inp.chrome_profile ? String(inp.chrome_profile).trim() : '';
   const cookieFile = explicit ? await resolveCookieFile(explicit) : await autoPickCookieFile(targetUrl);
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'bb-ck-'));
-  try { await fs.copyFile(cookieFile, path.join(dir, 'Cookies')); } catch { /* fall back to original dir */ }
+  try { await snapshotDb(cookieFile, path.join(dir, 'Cookies')); } catch { /* fall back to original dir */ }
   const cookiesDir = await fs.stat(path.join(dir, 'Cookies')).then(() => dir).catch(() => path.dirname(cookieFile));
   const mod = await import('chrome-cookies-secure');
   const cc = mod?.default ?? mod;

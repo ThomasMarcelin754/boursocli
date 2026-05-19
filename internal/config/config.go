@@ -17,8 +17,9 @@ type Config struct {
 	Version       int               `json:"version"`
 	ChromeProfile string            `json:"chrome_profile,omitempty"` // "Default", "Profile 1", or a path
 	CookiesByHost map[string]string `json:"cookies_by_host,omitempty"`
-	Bearer        string            `json:"bearer,omitempty"`    // scraped DEFAULT_API_BEARER (24h)
-	UserHash      string            `json:"user_hash,omitempty"` // scraped USER_HASH
+	Bearer        string            `json:"bearer,omitempty"`          // scraped DEFAULT_API_BEARER (24h)
+	BearerSavedAt string            `json:"bearer_saved_at,omitempty"` // RFC3339 UTC: when bearer was last established/refreshed (proactive keep-warm)
+	UserHash      string            `json:"user_hash,omitempty"`       // scraped USER_HASH
 	HTTPUserAgent string            `json:"http_user_agent,omitempty"`
 }
 
@@ -92,6 +93,7 @@ func (c *Config) Redacted() map[string]any {
 		"chrome_profile":  c.ChromeProfile,
 		"cookies_by_host": hosts,
 		"bearer":          red(c.Bearer),
+		"bearer_saved_at": c.BearerSavedAt, // a timestamp, not a secret — useful for the keep-warm/expiry diagnostic
 		"user_hash":       red(c.UserHash), // account-linkable → redact (show nothing identifying)
 		"http_user_agent": c.HTTPUserAgent,
 		// Non-secret anchors for the durability check: presence booleans only,
