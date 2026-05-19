@@ -1,0 +1,44 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to (re)release, e.g. v0.1.0"
+        required: true
+        type: string
+
+# Only the default GITHUB_TOKEN, scoped to publishing the release. No
+# project secrets exist or are needed — the CLI's credentials are the user's
+# local Chrome/OS-keychain at runtime, never baked into a binary or image.
+# id-token: keyless cosign signing of checksums.txt via GitHub OIDC (no key).
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Check out the requested tag (manual dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: git checkout "${{ inputs.tag }}"
+      # goreleaser-action bundles neither syft nor cosign; the .goreleaser.yaml
+      # sboms:/signs: stages need both on PATH or the release fails.
+      - uses: anchore/sbom-action/download-syft@v0
+      - uses: sigstore/cosign-installer@v3
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

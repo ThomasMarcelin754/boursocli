@@ -1,0 +1,66 @@
+name: ci
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+# No secrets are used: tests are hermetic (httptest, no live session, no
+# network credentials). The CLI's only credential source is the user's local
+# Chrome/OS-keychain at runtime — never CI.
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go build ./...
+      - run: go vet ./...
+      - name: full test suite (all packages must pass, race-enabled)
+        run: go test ./... -race
+      - name: per-package coverage floors (critical logic/security packages)
+        # Honest gate: we floor the correctness/security/parsing packages that
+        # are unit-testable. The command layer (internal/cli glue) and
+        # internal/auth (shells out to node for chromecookies) are validated
+        # by the documented end-to-end LIVE BACKTEST, not by mocked units —
+        # a gamed total-% would be less assurance, not more. See CLAUDE.md
+        # "Testing & coverage policy".
+        run: |
+          set -euo pipefail
+          declare -A floor=( [client]=80 [config]=75 [htmlx]=80 [out]=75 [version]=90 )
+          fail=0
+          for pkg in "${!floor[@]}"; do
+            pct="$(go test ./internal/$pkg/ -cover | sed -n 's/.*coverage: \([0-9.]*\)%.*/\1/p')"
+            echo "internal/$pkg: ${pct}% (floor ${floor[$pkg]}%)"
+            awk -v c="${pct:-0}" -v f="${floor[$pkg]}" 'BEGIN{ exit !(c+0 >= f+0) }' || { echo "  BELOW FLOOR"; fail=1; }
+          done
+          exit $fail
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=4m
+
+  vulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...

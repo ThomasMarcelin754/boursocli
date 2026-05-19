@@ -1,0 +1,24 @@
+# golangci-lint v2 — the "ESLint for Go" runner.
+# Default linters (errcheck, govet, staticcheck, ineffassign, unused) PLUS the
+# enriched set the project's AGENTS.md mandates. Run: `make lint`.
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose      # HTTP response bodies must be closed (this is a network CLI)
+    - gosec          # security scanner (published, handles bank session secrets)
+    - errorlint      # correct error wrapping / errors.Is/As
+    - errchkjson     # unchecked json.Marshal errors
+    - nilerr         # `return nil` when err is non-nil
+    - durationcheck  # bad time.Duration arithmetic
+    - copyloopvar    # Go 1.22+ loop var capture
+    # misspell intentionally NOT enabled: user-facing strings are French
+    # (FR audience) and misspell is English-only — it false-positives on
+    # words like "enveloppe". Code comments stay English by convention.
+    - unconvert      # redundant type conversions
+    - usestdlibvars  # use net/http & co constants
+  settings:
+    gosec:
+      excludes:
+        - G104  # duplicated by errcheck (already enforced)

@@ -1,0 +1,78 @@
+version: 2
+
+project_name: boursobank
+
+changelog:
+  disable: true # CHANGELOG.md is hand-curated
+
+builds:
+  - id: boursobank
+    main: ./cmd/boursobank
+    binary: boursobank
+    env:
+      - CGO_ENABLED=0 # static, no libc — portable binaries
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_amd64
+      - linux_arm64
+      - windows_amd64
+      - windows_arm64
+    ldflags:
+      - -s -w
+      - -X github.com/thomasmarcelin754/boursobank/internal/version.Version={{ .Version }}
+      - -X github.com/thomasmarcelin754/boursobank/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/thomasmarcelin754/boursobank/internal/version.Date={{ .Date }}
+
+archives:
+  - ids: [boursobank]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: checksums.txt
+
+# SBOM per archive (Syft). Supply-chain expectation for a published CLI.
+# CI installs syft; local `--snapshot` skips this if syft is absent.
+sboms:
+  - id: archive-sbom
+    artifacts: archive
+
+# Keyless cosign signature over the checksums file. OIDC-based — runs in CI
+# (GitHub Actions identity); skipped on local `--snapshot` (no OIDC).
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - --yes
+
+release:
+  # No secrets in artifacts; the binary holds only build metadata.
+  prerelease: auto
+
+# Homebrew distribution is INTENTIONALLY manual here (paste 3 fields into the
+# separate tap repo via scripts/release-homebrew.sh — see
+# docs/releasing-homebrew.md). Enabling goreleaser `brews:` flips that
+# documented decision and needs a HOMEBREW_TAP_TOKEN secret + write access to
+# thomasmarcelin754/homebrew-tap. Left disabled on purpose; uncomment and wire
+# the token ONLY if the distribution model is deliberately changed.
+# brews:
+#   - repository:
+#       owner: thomasmarcelin754
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+#     directory: Formula
+#     homepage: "https://github.com/thomasmarcelin754/boursobank"
+#     description: "Agent-first CLI for a personal BoursoBank account"
+#     license: "MIT"
+#     install: |
+#       bin.install "boursobank"
+#     test: |
+#       system "#{bin}/boursobank", "version"

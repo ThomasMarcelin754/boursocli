@@ -1,0 +1,21 @@
+# Secrets — never commit (config.json holds bearer/cookies, 0600)
+config.json
+*.config.json
+.env
+
+# Built binary
+/boursobank
+/cmd/boursobank/boursobank
+
+# goreleaser output (binaries, archives, checksums, SBOMs)
+/dist/
+
+# Go
+*.test
+*.out
+
+# macOS
+.DS_Store
+
+# Local Claude Code tooling config — machine-specific, never public
+.claude/
