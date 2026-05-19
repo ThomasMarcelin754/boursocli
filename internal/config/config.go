@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const Version = 1
@@ -81,8 +82,10 @@ func (c *Config) Redacted() map[string]any {
 		return "*** (" + itoa(len(s)) + " chars)"
 	}
 	hosts := map[string]string{}
+	rememberme := map[string]bool{}
 	for h, v := range c.CookiesByHost {
 		hosts[h] = red(v)
+		rememberme[h] = hasCookie(v, "rememberme")
 	}
 	return map[string]any{
 		"version":         c.Version,
@@ -91,7 +94,29 @@ func (c *Config) Redacted() map[string]any {
 		"bearer":          red(c.Bearer),
 		"user_hash":       red(c.UserHash), // account-linkable → redact (show nothing identifying)
 		"http_user_agent": c.HTTPUserAgent,
+		// Non-secret anchors for the durability check: presence booleans only,
+		// never any value. `rememberme` is the bank's device-trust cookie —
+		// these let the owner empirically verify it survives across logins.
+		"session_anchors": map[string]any{
+			"rememberme_by_host": rememberme,
+			"bearer_present":     c.Bearer != "",
+		},
 	}
+}
+
+// hasCookie reports whether a "name=value; …" Cookie header carries a cookie
+// named `name` (case-insensitive on the name). Presence only — value never read.
+func hasCookie(header, name string) bool {
+	name = strings.ToLower(name)
+	for _, p := range strings.Split(header, ";") {
+		p = strings.TrimSpace(p)
+		if i := strings.IndexByte(p, '='); i > 0 {
+			if strings.ToLower(strings.TrimSpace(p[:i])) == name {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func itoa(n int) string {

@@ -69,8 +69,10 @@ On ne *supprime* pas la reconnexion — on l'**espace au maximum** et on la rend
 indolore, via le mécanisme prévu par la banque :
 
 1. **Cocher « Se souvenir de moi » à la connexion.** Cela émet le cookie
-   `rememberme` : ce navigateur devient un *appareil de confiance* et les
-   sessions suivantes raccourcissent/sautent le SCA. C'est le plus gros levier.
+   `rememberme`, mécanisme *device-trust* prévu par la banque pour
+   raccourcir/sauter le SCA d'un navigateur de confiance. ⚠️ *Comportement
+   non vérifié empiriquement ici (inféré du flux d'auth) — à confirmer à
+   l'usage ; ne pas en dépendre comme d'une garantie.*
 2. **Profil Chrome dédié et stable** (utilisé seulement pour BoursoBank, jamais
    nettoyé) : le `rememberme` y survit longtemps. Épinglez-le une fois :
    ```sh

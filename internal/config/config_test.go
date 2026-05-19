@@ -66,3 +66,41 @@ func TestRedactedHidesSecrets(t *testing.T) {
 		t.Fatalf("expected redaction markers: %s", s)
 	}
 }
+
+func TestHasCookie(t *testing.T) {
+	cases := []struct {
+		hdr, name string
+		want      bool
+	}{
+		{"rememberme=abc; sid=1", "rememberme", true},
+		{"sid=1; RememberMe=xyz", "rememberme", true}, // case-insensitive name
+		{"sid=1; other=2", "rememberme", false},
+		{"", "rememberme", false},
+		{"rememberme_x=1", "rememberme", false}, // must not prefix-match
+		{"x=rememberme=1", "rememberme", false}, // value containing the name ≠ a cookie named it
+		{"  rememberme = v ; a=b", "rememberme", true},
+	}
+	for _, c := range cases {
+		if got := hasCookie(c.hdr, c.name); got != c.want {
+			t.Fatalf("hasCookie(%q,%q)=%v want %v", c.hdr, c.name, got, c.want)
+		}
+	}
+}
+
+func TestRedactedSessionAnchorsNoLeak(t *testing.T) {
+	c := &Config{
+		Bearer:        "supersecretjwt",
+		CookiesByHost: map[string]string{"clients.boursobank.com": "rememberme=SECRETVAL; sid=1"},
+	}
+	blob, err := json.Marshal(c.Redacted())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(blob)
+	if strings.Contains(s, "SECRETVAL") || strings.Contains(s, "supersecretjwt") {
+		t.Fatalf("session_anchors leaked a value: %s", s)
+	}
+	if !strings.Contains(s, `"rememberme_by_host"`) || !strings.Contains(s, `"bearer_present":true`) {
+		t.Fatalf("expected non-secret anchors present: %s", s)
+	}
+}
