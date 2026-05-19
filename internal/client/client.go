@@ -5,10 +5,13 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -102,10 +105,79 @@ func (c *Client) Bootstrap(ctx context.Context) error {
 	}
 	mb, mh := reBearer.FindSubmatch(body), reHash.FindSubmatch(body)
 	if mb == nil || mh == nil {
-		return fmt.Errorf("pas de DEFAULT_API_BEARER dans le dashboard (HTTP %d) : la session Chrome BoursoBank est morte — se reconnecter dans Chrome, puis réessayer", status)
+		// Fallback (api-reference: the `brsxds_<hex32>` cookie value IS a
+		// fresh API JWT, exp≈iat+24h, userHash inside). Decode it from the
+		// cookie we already hold — removes the dependency on a successful
+		// dashboard scrape (the exact failure here). Honest limit: if the
+		// server session is hard-dead the JWT is still rejected later (10006)
+		// and the resilientGet refresh/relogin path handles that — this only
+		// kills the "dashboard didn't yield the bearer" failure class.
+		if jwt, uh, ok := c.bearerFromCookie(); ok {
+			c.Bearer, c.UserHash = jwt, uh
+			return nil
+		}
+		return fmt.Errorf("pas de DEFAULT_API_BEARER dans le dashboard (HTTP %d) ni de cookie brsxds_ valide : la session Chrome BoursoBank est morte — se reconnecter dans Chrome, puis réessayer", status)
 	}
 	c.Bearer, c.UserHash = string(mb[1]), string(mh[1])
 	return nil
+}
+
+// bearerFromCookie extracts a still-valid API JWT from a `brsxds_<hex32>`
+// cookie in the merged jar (its value is the JWT). Returns ok only when the
+// token is a well-formed, non-expired JWT carrying a userHash — otherwise the
+// caller keeps its existing dead-session error (no behaviour regression).
+func (c *Client) bearerFromCookie() (jwt, userHash string, ok bool) {
+	for _, p := range strings.Split(c.cookie, ";") {
+		p = strings.TrimSpace(p)
+		i := strings.IndexByte(p, '=')
+		if i <= 0 || !strings.HasPrefix(p[:i], "brsxds_") {
+			continue
+		}
+		tok := p[i+1:]
+		if v, err := url.QueryUnescape(tok); err == nil {
+			tok = v
+		}
+		parts := strings.Split(tok, ".")
+		if len(parts) != 3 || !strings.HasPrefix(tok, "eyJ") {
+			continue
+		}
+		raw, err := b64urlDecode(parts[1])
+		if err != nil {
+			continue
+		}
+		var m map[string]any
+		if json.Unmarshal(raw, &m) != nil {
+			continue
+		}
+		exp, _ := m["exp"].(float64)
+		if exp == 0 || time.Now().Add(60*time.Second).After(time.Unix(int64(exp), 0)) {
+			continue // expired or about to — don't substitute a dead token
+		}
+		uh := claimUserHash(m)
+		if uh == "" {
+			continue
+		}
+		return tok, uh, true
+	}
+	return "", "", false
+}
+
+func b64urlDecode(s string) ([]byte, error) {
+	if m := len(s) % 4; m != 0 {
+		s += strings.Repeat("=", 4-m)
+	}
+	return base64.URLEncoding.DecodeString(s)
+}
+
+// claimUserHash finds the userHash claim (key name not contractually fixed —
+// match defensively; absent ⇒ caller declines the fallback).
+func claimUserHash(m map[string]any) string {
+	for k, v := range m {
+		if s, isStr := v.(string); isStr && s != "" && strings.EqualFold(strings.ReplaceAll(k, "_", ""), "userhash") {
+			return s
+		}
+	}
+	return ""
 }
 
 // Refresh renews the server-side session WITHOUT re-scraping the dashboard

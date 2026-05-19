@@ -2,12 +2,46 @@ package client
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
+
+func mkJWT(claims map[string]any) string {
+	hdr := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"none"}`))
+	pl, _ := json.Marshal(claims)
+	return hdr + "." + base64.RawURLEncoding.EncodeToString(pl) + ".sig"
+}
+
+func TestBearerFromCookie(t *testing.T) {
+	good := mkJWT(map[string]any{"exp": float64(time.Now().Add(time.Hour).Unix()), "userHash": "H123"})
+	c := New("a=1; brsxds_deadbeefdeadbeefdeadbeefdeadbeef="+good+"; b=2", "")
+	if jwt, uh, ok := c.bearerFromCookie(); !ok || uh != "H123" || jwt != good {
+		t.Fatalf("valid brsxds JWT not accepted: ok=%v uh=%q", ok, uh)
+	}
+	// expired → declined
+	exp := mkJWT(map[string]any{"exp": float64(time.Now().Add(-time.Hour).Unix()), "userHash": "H"})
+	if _, _, ok := New("brsxds_x="+exp, "").bearerFromCookie(); ok {
+		t.Fatal("expired brsxds JWT must be declined")
+	}
+	// no userHash claim → declined
+	nouh := mkJWT(map[string]any{"exp": float64(time.Now().Add(time.Hour).Unix())})
+	if _, _, ok := New("brsxds_x="+nouh, "").bearerFromCookie(); ok {
+		t.Fatal("brsxds JWT without userHash must be declined")
+	}
+	// absent / malformed → declined (no regression to existing error path)
+	if _, _, ok := New("sid=1; other=2", "").bearerFromCookie(); ok {
+		t.Fatal("no brsxds cookie must yield ok=false")
+	}
+	if _, _, ok := New("brsxds_x=notajwt", "").bearerFromCookie(); ok {
+		t.Fatal("malformed brsxds value must yield ok=false")
+	}
+}
 
 func TestPredicates(t *testing.T) {
 	if !isTrustedHost("clients.boursobank.com") || !isTrustedHost("api.boursorama.com") ||
