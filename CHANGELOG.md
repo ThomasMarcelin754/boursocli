@@ -3,7 +3,11 @@
 Tous les changements notables de ce projet. Format :
 [Keep a Changelog](https://keepachangelog.com), SemVer.
 
-## [Non publié]
+## [0.1.0-rc.1] — 2026-05-19
+
+Première prerelease : valide le pipeline de release (goreleaser 6
+plateformes + checksums + SBOM Syft + signature cosign keyless). Non
+destinée à un usage général.
 
 ### Ajouté
 - 12 commandes de lecture (Bearer JSON + HTML/CSV plan cookie) :
