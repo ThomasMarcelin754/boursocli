@@ -28,6 +28,67 @@ async function resolveCookieFile(profile) {
   const name = profile && profile.trim() ? profile.trim() : 'Default';
   return ensure(path.join(await profileRoot(), name));
 }
+
+// Auto-pick: when no profile is pinned, scan every Chrome profile and choose
+// the one whose target-domain session is FRESHEST (max last_update_utc, then
+// cookie count). Read-only metadata only (no values). Falls back to Default if
+// node:sqlite is unavailable or nothing scores — never regresses.
+function regDomain(targetUrl) {
+  try { const p = new URL(targetUrl).hostname.split('.'); return p.slice(-2).join('.'); } catch { return ''; }
+}
+async function listProfiles(root) {
+  const names = ['Default'];
+  try { for (const e of await fs.readdir(root)) if (/^Profile \d+$/.test(e)) names.push(e); } catch {}
+  return names;
+}
+async function cookieDbFor(root, name) {
+  for (const f of [path.join(root, name, 'Network', 'Cookies'), path.join(root, name, 'Cookies')]) {
+    try { if ((await fs.stat(f)).isFile()) return f; } catch {}
+  }
+  return null;
+}
+// null = node:sqlite unavailable (abort scan, caller falls back);
+// undefined = this DB unreadable (skip, keep scanning); else {count,recent}.
+async function scoreProfile(dbFile, dom) {
+  let sqlite;
+  try { sqlite = await import('node:sqlite'); } catch { return null; }
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'bb-scan-'));
+  try {
+    const cp = path.join(tmp, 'C');
+    await fs.copyFile(dbFile, cp);
+    const db = new sqlite.DatabaseSync(cp, { readOnly: true });
+    try {
+      // last_update_utc is a Chrome epoch (~1.3e16 µs) — too large for a JS
+      // Number; read it as TEXT and compare as BigInt.
+      const r = db.prepare(
+        'SELECT COUNT(*) c, CAST(COALESCE(MAX(last_update_utc),0) AS TEXT) m FROM cookies WHERE host_key LIKE ?'
+      ).get('%' + dom);
+      return { count: Number(r.c || 0), recent: BigInt(r.m || '0') };
+    } finally { db.close(); }
+  } catch { return undefined; }
+  finally { await fs.rm(tmp, { recursive: true, force: true }).catch(() => {}); }
+}
+async function autoPickCookieFile(targetUrl) {
+  const root = await profileRoot();
+  const dom = regDomain(targetUrl);
+  if (!dom) return resolveCookieFile('');
+  let best = null;
+  for (const name of await listProfiles(root)) {
+    const dbf = await cookieDbFor(root, name);
+    if (!dbf) continue;
+    const s = await scoreProfile(dbf, dom);
+    if (s === null) break;        // no node:sqlite → fall back to Default
+    if (s === undefined) continue; // unreadable DB → skip this profile
+    if (s.count > 0 && (!best || s.recent > best.recent || (s.recent === best.recent && s.count > best.count))) {
+      best = { name, dbf, ...s };
+    }
+  }
+  if (best) {
+    process.stderr.write(`bb: profil Chrome auto-sélectionné pour ${dom}: ${best.name} (${best.count} cookies, le plus frais)\n`);
+    return best.dbf;
+  }
+  return resolveCookieFile(''); // never regress: Default
+}
 async function ensure(p) {
   const st = await fs.stat(p).catch(() => null);
   if (!st) throw new Error('Chrome profile not found: ' + p);
@@ -49,7 +110,8 @@ async function main() {
   const targetUrl = String(inp.target_url || '').trim();
   if (!targetUrl) throw new Error('target_url missing');
   const timeoutMs = Number.isFinite(inp.timeout_millis) && inp.timeout_millis > 0 ? inp.timeout_millis : 5000;
-  const cookieFile = await resolveCookieFile(inp.chrome_profile ? String(inp.chrome_profile) : '');
+  const explicit = inp.chrome_profile ? String(inp.chrome_profile).trim() : '';
+  const cookieFile = explicit ? await resolveCookieFile(explicit) : await autoPickCookieFile(targetUrl);
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'bb-ck-'));
   try { await fs.copyFile(cookieFile, path.join(dir, 'Cookies')); } catch { /* fall back to original dir */ }
   const cookiesDir = await fs.stat(path.join(dir, 'Cookies')).then(() => dir).catch(() => path.dirname(cookieFile));

@@ -111,7 +111,7 @@ func session(ctx context.Context) (*client.Client, *config.Config, string, error
 
 func orDefault(s string) string {
 	if s == "" {
-		return "Default"
+		return "auto (multi-profil : profil bourso le plus frais)"
 	}
 	return s
 }
