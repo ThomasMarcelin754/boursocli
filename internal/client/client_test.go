@@ -14,7 +14,7 @@ import (
 
 func mkJWT(claims map[string]any) string {
 	hdr := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"none"}`))
-	pl, _ := json.Marshal(claims)
+	pl, _ := json.Marshal(claims) //nolint:errchkjson // test helper, map[string]any literals never fail
 	return hdr + "." + base64.RawURLEncoding.EncodeToString(pl) + ".sig"
 }
 
