@@ -188,6 +188,95 @@ func TestBootstrapDeadSession(t *testing.T) {
 	}
 }
 
+func TestProbeSuccess(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.Path, "timeline/unreadcount") {
+			t.Fatalf("Probe hit unexpected path: %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"count":0}`))
+	}))
+	defer srv.Close()
+	apiBase = srv.URL
+	defer func() { apiBase = "https://api.boursobank.com/services/api/v1.7" }()
+	c := New("ck=1", "")
+	c.Bearer, c.UserHash = "JWT", "H1"
+	if err := c.Probe(context.Background()); err != nil {
+		t.Fatalf("Probe should succeed on 200: %v", err)
+	}
+}
+
+func TestProbeFail(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"code":10006}`))
+	}))
+	defer srv.Close()
+	apiBase = srv.URL
+	defer func() { apiBase = "https://api.boursobank.com/services/api/v1.7" }()
+	c := New("ck=1", "")
+	c.Bearer, c.UserHash = "JWT", "H1"
+	if err := c.Probe(context.Background()); err == nil {
+		t.Fatal("Probe should fail on 401")
+	}
+}
+
+func TestPublicAPI(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.Path, "_public_/feed/instrument/quote") {
+			t.Fatalf("PublicAPI hit unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("authorization") == "" {
+			t.Fatal("PublicAPI should send bearer")
+		}
+		_, _ = w.Write([]byte(`{"symbol":"1rPENGI","last":27.25}`))
+	}))
+	defer srv.Close()
+	apiBase = srv.URL
+	defer func() { apiBase = "https://api.boursobank.com/services/api/v1.7" }()
+	c := New("ck=1", "")
+	c.Bearer = "JWT"
+	b, st, err := c.PublicAPI(context.Background(), "_public_/feed/instrument/quote/1rPENGI")
+	if err != nil || st != 200 {
+		t.Fatalf("PublicAPI failed: st=%d err=%v", st, err)
+	}
+	if !strings.Contains(string(b), "1rPENGI") {
+		t.Fatalf("unexpected body: %s", b)
+	}
+}
+
+func TestBearerExp(t *testing.T) {
+	c := New("", "")
+	c.Bearer = mkJWT(map[string]any{"exp": float64(time.Now().Add(time.Hour).Unix()), "userHash": "H"})
+	exp := c.BearerExp()
+	if exp.IsZero() || time.Until(exp) < 50*time.Minute {
+		t.Fatalf("BearerExp should be ~1h from now, got %v", exp)
+	}
+	c.Bearer = "garbage"
+	if !c.BearerExp().IsZero() {
+		t.Fatal("bad JWT should yield zero time")
+	}
+}
+
+func TestAPICookieWrappers(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+	apiBase = srv.URL
+	defer func() { apiBase = "https://api.boursobank.com/services/api/v1.7" }()
+	c := New("ck=1", "")
+	c.Bearer, c.UserHash = "JWT", "H1"
+	if b, st, err := c.API(context.Background(), "test/resource"); err != nil || st != 200 || !strings.Contains(string(b), "ok") {
+		t.Fatalf("API wrapper failed: st=%d err=%v", st, err)
+	}
+	if b, st, err := c.Cookie(context.Background(), srv.URL+"/page"); err != nil || st != 200 || !strings.Contains(string(b), "ok") {
+		t.Fatalf("Cookie wrapper failed: st=%d err=%v", st, err)
+	}
+	if b, st, err := c.CookieOnce(context.Background(), srv.URL+"/once"); err != nil || st != 200 || !strings.Contains(string(b), "ok") {
+		t.Fatalf("CookieOnce wrapper failed: st=%d err=%v", st, err)
+	}
+}
+
 func TestRedirectCookieAllowlist(t *testing.T) {
 	// untrusted redirect target must NOT receive the cookie
 	var leaked string

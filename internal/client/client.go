@@ -227,12 +227,33 @@ func (c *Client) Refresh(ctx context.Context) error {
 	return nil
 }
 
+// Probe checks whether the current bearer is still accepted by the server.
+// A lightweight GET on a known-cheap endpoint; returns nil if 200, an error
+// on 401/10006 (session dead) or any other failure. No retry, no re-auth.
+func (c *Client) Probe(ctx context.Context) error {
+	u := fmt.Sprintf("%s/_user_/_%s_/customer/timeline/unreadcount?_host=clients.boursobank.com", apiBase, c.UserHash)
+	_, st, _, err := c.do(ctx, http.MethodGet, u, "application/json", true)
+	if err != nil {
+		return err
+	}
+	if st != 200 {
+		return fmt.Errorf("probe → HTTP %d", st)
+	}
+	return nil
+}
+
 // API calls a Bearer-plane endpoint: GET api.boursobank.com/.../_user_/_<hash>_/<resource>.
 // Pass the resource WITHOUT the userHash segment (added here). NO cookie sent.
 // Resilient: throttle → bounded backoff (no re-auth); bank 401/10006 → one
 // Refresh + one retry.
 func (c *Client) API(ctx context.Context, resource string) ([]byte, int, error) {
 	u := fmt.Sprintf("%s/_user_/_%s_/%s?_host=clients.boursobank.com", apiBase, c.UserHash, resource)
+	return c.resilientGet(ctx, u, "application/json", true)
+}
+
+// PublicAPI calls a public Bearer-plane endpoint (_public_/ prefix, no userHash).
+func (c *Client) PublicAPI(ctx context.Context, resource string) ([]byte, int, error) {
+	u := fmt.Sprintf("%s/%s", apiBase, resource)
 	return c.resilientGet(ctx, u, "application/json", true)
 }
 

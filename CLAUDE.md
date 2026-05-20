@@ -55,12 +55,14 @@ boursorama (posé via le SSO `x-domain-authentification`).
 Flux `session()` :
 
 1. **Cookies** : `internal/auth` lance un helper Node embarqué (`load.mjs`)
-   qui lit le magasin de cookies **Chrome** local via `chrome-cookies-secure`
-   — déchiffré par le keychain de l'OS, DB copiée en dossier temp pour
-   fonctionner Chrome ouvert. Lancé **une fois par domaine**, jars fusionnés,
-   **sans filtre de nom** (capture tout). L'utilisateur reste juste connecté
-   à BoursoBank dans Chrome. `npm install chrome-cookies-secure` unique dans
-   un cache ; nécessite Node+npm.
+   qui lit le magasin de cookies **Chrome** local via `@steipete/sweet-cookie`
+   (node:sqlite built-in, pas d'addon natif) — déchiffré par le keychain de
+   l'OS, DB + WAL/SHM copiées en dossier temp pour fonctionner Chrome ouvert.
+   Auto-pick multi-profil (le profil au jar le plus frais). Lancé **une fois
+   par domaine**, jars fusionnés, **sans filtre de nom** (capture tout).
+   L'utilisateur reste juste connecté à BoursoBank dans Chrome.
+   `npm install @steipete/sweet-cookie` unique dans un cache ; nécessite
+   Node ≥22 + npm.
 2. **Amorçage bearer** : GET du dashboard avec le cookie fusionné, scrape
    `DEFAULT_API_BEARER` (~24 h) + `USER_HASH` du HTML.
 3. Sur session Chrome morte (302→login / pas de bearer) : **une** ré-extraction
@@ -73,6 +75,8 @@ Pas de `.env`, pas de collage manuel de cookie, pas de loopback OAuth
 
 - **Bearer JSON (préféré)** — `api.boursobank.com/.../_user_/_<hash>_/<resource>`,
   `Authorization: Bearer …`, aucun cookie envoyé.
+- **Bearer public** — `api.boursobank.com/.../_public_/feed/instrument/*`,
+  bearer requis mais pas de userHash. Quotes, orderbook, topflop, analyse.
 - **Plan cookie (repli)** — HTML/CSV `clients/bourse.boursobank.com` avec le
   cookie bi-domaine fusionné. Titres/ORD nécessitent le jar boursorama.
 
@@ -105,12 +109,23 @@ sinon un retry sous throttle brûlerait le jeton.
 
 ## État
 
-- ✅ Auth vérifiée en live : chromecookies bi-domaine → bearer.
-- ✅ **12 commandes de lecture construites & validées sur un compte réel**
-  (HTTP 200 + données réelles, 2026-05-19) : `accounts`, `operations`, `transfers`,
-  `budgets`, `incidents`, `positions`, `ord-orders`, `ord-fiscalite`,
-  `documents`/relevés, `ord-ost`, `budget-movements`, `export` — plus les
-  méta `config` et `version` (14 commandes cobra au total).
+- ✅ Auth vérifiée en live : chromecookies bi-domaine → bearer, avec
+  **auto-recovery** (`Probe()` dans `session()` : si le bearer en config est
+  rejeté après un re-login Chrome, re-extraction + re-bootstrap automatique
+  sans `--refresh`).
+- ✅ **21 commandes de lecture construites & validées sur un compte réel**
+  (HTTP 200 + données réelles + audit JSON shape, 2026-05-20) :
+  **Banking** : `accounts`, `operations`, `transfers`, `export`,
+  `budget-movements`, `budgets`, `incidents`, `sepa`, `recipients` ;
+  **Titres** : `positions`, `ord-orders`, `ord-mouvements`, `ord-fiscalite`,
+  `ord-ost`, `documents` ;
+  **Carte** : `card` ;
+  **Marché** : `quote` (enrichi : quote+summary+analysis), `orderbook`,
+  `topflop` ;
+  **Customer** : `profile`, `messages` (inbox + timeline) —
+  plus les méta `config` et `version` (24 commandes cobra au total).
+  Trois types de source : Bearer JSON, Bearer public (`_public_/`), Cookie
+  HTML/CSV (dual-domain).
 - ✅ Reconnexion propre (`session/auth/refresh`) + taxonomie des codes 401
   (backoff throttle vs refresh session bank, boucles séparées) — implémenté.
 - ⬜ Pas encore construit : le `virement` assisté (écriture, sous SCA —

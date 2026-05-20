@@ -54,8 +54,11 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(
 		newConfigCmd(), newAccountsCmd(),
 		newOperationsCmd(), newTransfersCmd(), newBudgetsCmd(), newIncidentsCmd(),
-		newPositionsCmd(), newOrdOrdersCmd(), newOrdFiscaliteCmd(),
+		newPositionsCmd(), newOrdOrdersCmd(), newOrdFiscaliteCmd(), newOrdMouvementsCmd(),
 		newDocumentsCmd(), newOrdOstCmd(), newBudgetMovementsCmd(), newExportCmd(),
+		newCardCmd(), newSepaCmd(), newQuoteCmd(),
+		newOrderbookCmd(), newTopflopCmd(), newMessagesCmd(),
+		newProfileCmd(), newRecipientsCmd(),
 		newVersionCmd(),
 	)
 	return root
@@ -110,6 +113,18 @@ func session(ctx context.Context) (*client.Client, *config.Config, string, error
 			if err := c.Refresh(ctx); err == nil {
 				cfg.BearerSavedAt = time.Now().UTC().Format(time.RFC3339)
 				_ = cfg.Save(cfgPath)
+			}
+		}
+		// A re-login in Chrome kills the old server session even though the
+		// JWT exp is still in the future. Probe cheaply; if the bearer is
+		// dead, re-extract cookies and re-bootstrap transparently.
+		if err := c.Probe(ctx); err != nil {
+			out.Debugf("bearer en config rejeté (%v) — re-bootstrap", err)
+			needBootstrap = true
+			ck, e2 := auth.ExtractCookies(ctx, cfg.ChromeProfile, cacheDir, os.Stderr)
+			if e2 == nil {
+				cfg.CookiesByHost = ck
+				c = client.New(auth.MergedHeader(ck), cfg.HTTPUserAgent)
 			}
 		}
 	}

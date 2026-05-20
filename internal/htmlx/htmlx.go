@@ -105,18 +105,33 @@ func (t *Table) Cell(row []*goquery.Selection, header string) (*goquery.Selectio
 	return nil, fmt.Errorf("en-tête %q introuvable (présents : %v)", header, t.Headers)
 }
 
-// SummaryByLabel reads a label->value map from a summary block (e.g.
-// div.c-summary-account-wrapper items, each label in .c-databox__name). The
-// value is the item's text minus the label text.
+// SummaryByLabel reads a label->value map from a summary block. On the real
+// BoursoBank DOM the structure is ul.c-databox-list > li.c-databox-list__item,
+// each containing .c-databox__name (label) and .c-databox__value (value).
+// When that nested structure is absent (simpler DOM), falls back to reading
+// nameSel directly inside each itemSel and deriving the value by subtraction.
 func (d *Doc) SummaryByLabel(itemSel, nameSel string) map[string]string {
 	m := map[string]string{}
-	d.q.Find(itemSel).Each(func(_ int, it *goquery.Selection) {
-		label := clean(it.Find(nameSel).First().Text())
-		if label == "" {
-			return
+	d.q.Find(itemSel).Each(func(_ int, wrapper *goquery.Selection) {
+		items := wrapper.Find(".c-databox-list__item")
+		if items.Length() > 0 {
+			items.Each(func(_ int, li *goquery.Selection) {
+				label := clean(li.Find(nameSel).First().Text())
+				if label == "" {
+					return
+				}
+				if val := li.Find(".c-databox__value"); val.Length() > 0 {
+					m[label] = clean(val.First().Text())
+				} else {
+					m[label] = clean(strings.TrimPrefix(clean(li.Text()), label))
+				}
+			})
+		} else {
+			label := clean(wrapper.Find(nameSel).First().Text())
+			if label != "" {
+				m[label] = clean(strings.TrimPrefix(clean(wrapper.Text()), label))
+			}
 		}
-		full := clean(it.Text())
-		m[label] = clean(strings.TrimPrefix(full, label))
 	})
 	return m
 }
