@@ -36,7 +36,7 @@ jobs:
       # sboms:/signs: stages need both on PATH or the release fails.
       - uses: anchore/sbom-action/download-syft@v0
       - uses: sigstore/cosign-installer@v3
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           version: latest
           args: release --clean
