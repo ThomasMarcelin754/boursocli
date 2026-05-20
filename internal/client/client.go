@@ -180,6 +180,27 @@ func claimUserHash(m map[string]any) string {
 	return ""
 }
 
+// BearerExp returns the JWT exp as a UTC time, or zero if unparseable.
+func (c *Client) BearerExp() time.Time {
+	parts := strings.Split(c.Bearer, ".")
+	if len(parts) != 3 {
+		return time.Time{}
+	}
+	raw, err := b64urlDecode(parts[1])
+	if err != nil {
+		return time.Time{}
+	}
+	var m map[string]any
+	if json.Unmarshal(raw, &m) != nil {
+		return time.Time{}
+	}
+	exp, _ := m["exp"].(float64)
+	if exp == 0 {
+		return time.Time{}
+	}
+	return time.Unix(int64(exp), 0).UTC()
+}
+
 // Refresh renews the server-side session WITHOUT re-scraping the dashboard
 // Clean reconnect path: POST _public_/session/auth/refresh,
 // body {}, cookie plane, no bearer. 200 = renewed.

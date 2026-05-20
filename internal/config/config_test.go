@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPathOverride(t *testing.T) {
@@ -84,6 +85,42 @@ func TestHasCookie(t *testing.T) {
 		if got := hasCookie(c.hdr, c.name); got != c.want {
 			t.Fatalf("hasCookie(%q,%q)=%v want %v", c.hdr, c.name, got, c.want)
 		}
+	}
+}
+
+func TestBearerLikelyExpired(t *testing.T) {
+	margin := 2 * time.Minute
+	// No bearer → expired
+	if !(&Config{}).BearerLikelyExpired(margin) {
+		t.Fatal("empty bearer must be expired")
+	}
+	// Bearer with exp in the future → not expired
+	future := time.Now().Add(12 * time.Hour).UTC().Format(time.RFC3339)
+	c := &Config{Bearer: "jwt", BearerExp: future}
+	if c.BearerLikelyExpired(margin) {
+		t.Fatal("bearer with 12h remaining must not be expired")
+	}
+	// Bearer with exp in the past → expired
+	past := time.Now().Add(-1 * time.Hour).UTC().Format(time.RFC3339)
+	c2 := &Config{Bearer: "jwt", BearerExp: past}
+	if !c2.BearerLikelyExpired(margin) {
+		t.Fatal("bearer with exp in the past must be expired")
+	}
+	// Bearer within margin → expired
+	soon := time.Now().Add(90 * time.Second).UTC().Format(time.RFC3339)
+	c3 := &Config{Bearer: "jwt", BearerExp: soon}
+	if !c3.BearerLikelyExpired(margin) {
+		t.Fatal("bearer expiring within margin must be expired")
+	}
+	// No BearerExp but BearerSavedAt recent → not expired (fallback)
+	c4 := &Config{Bearer: "jwt", BearerSavedAt: time.Now().UTC().Format(time.RFC3339)}
+	if c4.BearerLikelyExpired(margin) {
+		t.Fatal("recent BearerSavedAt fallback must not be expired")
+	}
+	// No BearerExp, BearerSavedAt old → expired (fallback)
+	c5 := &Config{Bearer: "jwt", BearerSavedAt: time.Now().Add(-24 * time.Hour).UTC().Format(time.RFC3339)}
+	if !c5.BearerLikelyExpired(margin) {
+		t.Fatal("old BearerSavedAt fallback must be expired")
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const Version = 1
@@ -18,7 +19,8 @@ type Config struct {
 	ChromeProfile string            `json:"chrome_profile,omitempty"` // "Default", "Profile 1", or a path
 	CookiesByHost map[string]string `json:"cookies_by_host,omitempty"`
 	Bearer        string            `json:"bearer,omitempty"`          // scraped DEFAULT_API_BEARER (24h)
-	BearerSavedAt string            `json:"bearer_saved_at,omitempty"` // RFC3339 UTC: when bearer was last established/refreshed (proactive keep-warm)
+	BearerSavedAt string            `json:"bearer_saved_at,omitempty"` // RFC3339 UTC: when bearer was last established/refreshed
+	BearerExp     string            `json:"bearer_exp,omitempty"`      // RFC3339 UTC: JWT exp claim — steipete ExpiresAt pattern
 	UserHash      string            `json:"user_hash,omitempty"`       // scraped USER_HASH
 	HTTPUserAgent string            `json:"http_user_agent,omitempty"`
 }
@@ -74,6 +76,31 @@ func (c *Config) Save(path string) error {
 	return os.Rename(tmp, path)
 }
 
+// BearerLikelyExpired reports whether the stored bearer JWT is expired or will
+// expire within margin. Mirrors steipete ordercli TokenLikelyExpired pattern.
+// When true the caller should re-bootstrap (re-GET dashboard) — the cookie
+// session outlives the bearer (empirically proven: 10h50 measurement).
+func (c *Config) BearerLikelyExpired(margin time.Duration) bool {
+	if c.Bearer == "" {
+		return true
+	}
+	if c.BearerExp == "" {
+		if c.BearerSavedAt == "" {
+			return true
+		}
+		t, err := time.Parse(time.RFC3339, c.BearerSavedAt)
+		if err != nil {
+			return true
+		}
+		return time.Since(t) > 23*time.Hour
+	}
+	exp, err := time.Parse(time.RFC3339, c.BearerExp)
+	if err != nil {
+		return true
+	}
+	return !exp.After(time.Now().Add(margin))
+}
+
 // Redacted returns a copy safe to print (`config show`).
 func (c *Config) Redacted() map[string]any {
 	red := func(s string) string {
@@ -93,7 +120,8 @@ func (c *Config) Redacted() map[string]any {
 		"chrome_profile":  c.ChromeProfile,
 		"cookies_by_host": hosts,
 		"bearer":          red(c.Bearer),
-		"bearer_saved_at": c.BearerSavedAt, // a timestamp, not a secret — useful for the keep-warm/expiry diagnostic
+		"bearer_saved_at": c.BearerSavedAt, // a timestamp, not a secret
+		"bearer_exp":      c.BearerExp,     // JWT exp — the 24h ceiling
 		"user_hash":       red(c.UserHash), // account-linkable → redact (show nothing identifying)
 		"http_user_agent": c.HTTPUserAgent,
 		// Non-secret anchors for the durability check: presence booleans only,

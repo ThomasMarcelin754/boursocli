@@ -39,13 +39,13 @@ type scriptOut struct {
 
 // ExtractCookies runs the embedded Node helper once per domain and returns the
 // per-host cookie map (to store in config.CookiesByHost). cacheDir holds the
-// one-off npm install of chrome-cookies-secure.
+// one-off npm install of @steipete/sweet-cookie. Requires Node ≥22.
 func ExtractCookies(ctx context.Context, chromeProfile, cacheDir string, log io.Writer) (map[string]string, error) {
 	if _, err := exec.LookPath("node"); err != nil {
-		return nil, fmt.Errorf("node introuvable (requis pour chromecookies ; installer Node ou utiliser un override cookie via --config)")
+		return nil, fmt.Errorf("node introuvable (requis pour chromecookies ; installer Node ≥22 ou utiliser un override cookie via --config)")
 	}
 	if _, err := exec.LookPath("npm"); err != nil {
-		return nil, fmt.Errorf("npm introuvable (requis pour l’amorçage chrome-cookies-secure)")
+		return nil, fmt.Errorf("npm introuvable (requis pour l’amorçage @steipete/sweet-cookie)")
 	}
 	if err := ensureNpm(ctx, cacheDir, log); err != nil {
 		return nil, err
@@ -93,13 +93,13 @@ func MergedHeader(byHost map[string]string) string {
 }
 
 func ensureNpm(ctx context.Context, dir string, log io.Writer) error {
-	if _, err := os.Stat(filepath.Join(dir, "node_modules", "chrome-cookies-secure", "package.json")); err == nil {
+	if _, err := os.Stat(filepath.Join(dir, "node_modules", "@steipete", "sweet-cookie", "package.json")); err == nil {
 		return nil
 	}
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
-	pkg := `{"private":true,"type":"module","dependencies":{"chrome-cookies-secure":"3.0.0"}}` + "\n"
+	pkg := `{"private":true,"type":"module","dependencies":{"@steipete/sweet-cookie":"0.2.0"}}` + "\n"
 	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0o600); err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func ensureNpm(ctx context.Context, dir string, log io.Writer) error {
 	cmd.Stdout = io.Discard
 	cmd.Stderr = orDiscard(log)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("npm install chrome-cookies-secure : %w", err)
+		return fmt.Errorf("npm install @steipete/sweet-cookie : %w", err)
 	}
 	return nil
 }

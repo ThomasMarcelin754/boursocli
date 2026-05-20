@@ -1,10 +1,9 @@
 // Extract cookies for ONE target URL from the local Chrome profile, decrypted
-// via the OS keychain (chrome-cookies-secure). Input JSON on stdin:
-//   {target_url, chrome_profile, timeout_millis}
+// via @steipete/sweet-cookie (node:sqlite, no native addons). Input JSON on
+// stdin: {target_url, chrome_profile, timeout_millis, inline_cookies_file}
 // Output JSON to $BOURSOBANK_OUTPUT_PATH: {cookie_header, cookie_count, error}
 // The Go side calls this twice (clients.boursobank.com + clients.boursorama.com)
-// and concatenates — the dual-domain requirement. Copies the Cookies DB to a
-// temp dir first so it works even while Chrome is open (no lock).
+// and concatenates — the dual-domain requirement.
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -21,12 +20,6 @@ async function profileRoot() {
       : [path.join(process.env.LOCALAPPDATA || path.join(h, 'AppData', 'Local'), 'Google', 'Chrome', 'User Data')];
   for (const d of c) { try { await fs.stat(d); return d; } catch {} }
   return c[0];
-}
-
-async function resolveCookieFile(profile) {
-  if (profile && (profile.includes('/') || profile.includes('\\'))) return ensure(profile);
-  const name = profile && profile.trim() ? profile.trim() : 'Default';
-  return ensure(path.join(await profileRoot(), name));
 }
 
 // Auto-pick: when no profile is pinned, scan every Chrome profile and choose
@@ -70,10 +63,12 @@ async function scoreProfile(dbFile, dom) {
   } catch { return undefined; }
   finally { await fs.rm(tmp, { recursive: true, force: true }).catch(() => {}); }
 }
-async function autoPickCookieFile(targetUrl) {
+// Returns a Chrome profile NAME (e.g. "Default", "Profile 1") — sweet-cookie
+// resolves it to the DB path internally. Empty string = let sweet-cookie pick.
+async function autoPickProfileName(targetUrl) {
   const root = await profileRoot();
   const dom = regDomain(targetUrl);
-  if (!dom) return resolveCookieFile('');
+  if (!dom) return '';
   let best = null;
   for (const name of await listProfiles(root)) {
     const dbf = await cookieDbFor(root, name);
@@ -87,27 +82,13 @@ async function autoPickCookieFile(targetUrl) {
   }
   if (best) {
     process.stderr.write(`bb: profil Chrome auto-sélectionné pour ${dom}: ${best.name} (${best.count} cookies, le plus frais)\n`);
-    return best.dbf;
+    return best.name;
   }
-  return resolveCookieFile(''); // never regress: Default
+  return '';
 }
-async function ensure(p) {
-  const st = await fs.stat(p).catch(() => null);
-  if (!st) throw new Error('Chrome profile not found: ' + p);
-  if (st.isDirectory()) {
-    for (const f of [path.join(p, 'Network', 'Cookies'), path.join(p, 'Cookies')]) {
-      try { if ((await fs.stat(f)).isFile()) return f; } catch {}
-    }
-    throw new Error('No Cookies DB under ' + p);
-  }
-  return p;
-}
-
 // Snapshot a Chromium cookie DB to `dest`, INCLUDING its `-wal`/`-shm`
-// sidecars. Chrome runs the Cookies DB in WAL mode; copying only the main
-// file loses committed-but-not-checkpointed writes → a stale read ("fresh
-// cookies in Chrome but the tool sees old ones"). Mirrors steipete
-// sweet-cookie / sweetcookie. Best-effort: sidecars may legitimately absent.
+// sidecars — used by scoreProfile to read live state. sweet-cookie does its
+// own snapshot for the actual extraction.
 async function snapshotDb(src, dest) {
   await fs.copyFile(src, dest);
   for (const sfx of ['-wal', '-shm']) {
@@ -125,21 +106,21 @@ async function main() {
   if (!targetUrl) throw new Error('target_url missing');
   const timeoutMs = Number.isFinite(inp.timeout_millis) && inp.timeout_millis > 0 ? inp.timeout_millis : 5000;
   const explicit = inp.chrome_profile ? String(inp.chrome_profile).trim() : '';
-  const cookieFile = explicit ? await resolveCookieFile(explicit) : await autoPickCookieFile(targetUrl);
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'bb-ck-'));
-  try { await snapshotDb(cookieFile, path.join(dir, 'Cookies')); } catch { /* fall back to original dir */ }
-  const cookiesDir = await fs.stat(path.join(dir, 'Cookies')).then(() => dir).catch(() => path.dirname(cookieFile));
-  const mod = await import('chrome-cookies-secure');
-  const cc = mod?.default ?? mod;
-  const timed = (p) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('chrome cookie read timeout')), timeoutMs))]);
-  const cookies = await timed(cc.getCookiesPromised(targetUrl, 'puppeteer', cookiesDir));
-  const seen = new Set(); const pairs = [];
-  for (const c of (Array.isArray(cookies) ? cookies : [])) {
-    const n = c?.name ? String(c.name) : ''; const v = c?.value ? String(c.value) : '';
-    if (!n || !v || seen.has(n)) continue;        // capture-all: no name whitelist
-    seen.add(n); pairs.push(n + '=' + v);
-  }
-  await write({ cookie_header: pairs.join('; '), cookie_count: pairs.length, error: '' });
+  const inlineFile = inp.inline_cookies_file ? String(inp.inline_cookies_file).trim() : '';
+
+  const profileName = explicit || await autoPickProfileName(targetUrl);
+  const { getCookies, toCookieHeader } = await import('@steipete/sweet-cookie');
+  const opts = {
+    url: targetUrl,
+    browsers: ['chrome'],
+    timeoutMs,
+    ...(profileName ? { chromeProfile: profileName } : {}),
+    ...(inlineFile ? { inlineCookiesFile: inlineFile } : {}),
+  };
+  const { cookies, warnings } = await getCookies(opts);
+  for (const w of warnings) process.stderr.write(`bb: sweet-cookie: ${w}\n`);
+  const header = toCookieHeader(cookies, { dedupeByName: true });
+  await write({ cookie_header: header, cookie_count: cookies.length, error: '' });
 }
 
 main().catch(async (e) => { try { await write({ cookie_header: '', cookie_count: 0, error: String(e && e.message || e) }); } catch {} process.exitCode = 1; });

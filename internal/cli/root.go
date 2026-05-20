@@ -88,9 +88,34 @@ func session(ctx context.Context) (*client.Client, *config.Config, string, error
 	}
 	c := client.New(auth.MergedHeader(cfg.CookiesByHost), cfg.HTTPUserAgent)
 
-	if flagRefresh || cfg.Bearer == "" {
+	needBootstrap := flagRefresh || cfg.Bearer == ""
+
+	// steipete TokenLikelyExpired pattern: if the bearer JWT is near expiry
+	// (or expired), the cookie session may still be alive (empirically proven:
+	// cookie outlives the 24h JWT). Refresh the cookie session first (keep it
+	// warm), then re-bootstrap a fresh bearer from the dashboard.
+	if !needBootstrap && cfg.BearerLikelyExpired(2*time.Minute) {
+		out.Debugf("bearer expiré ou imminent (exp %s) — refresh cookie + re-bootstrap", cfg.BearerExp)
+		_ = c.Refresh(ctx) // best-effort: keep cookie session alive
+		needBootstrap = true
+	}
+
+	// Proactive keep-warm: past ~half the bearer life, refresh the cookie
+	// session so it doesn't lapse between CLI invocations. Does NOT re-bootstrap
+	// the bearer (it's still valid); just extends the cookie session server-side.
+	if !needBootstrap {
+		c.Bearer, c.UserHash = cfg.Bearer, cfg.UserHash
+		if t, e := time.Parse(time.RFC3339, cfg.BearerSavedAt); e == nil && time.Since(t) > 12*time.Hour {
+			out.Debugf("bearer âgé de ~%s — refresh proactif (keep-warm cookie)", time.Since(t).Round(time.Hour))
+			if err := c.Refresh(ctx); err == nil {
+				cfg.BearerSavedAt = time.Now().UTC().Format(time.RFC3339)
+				_ = cfg.Save(cfgPath)
+			}
+		}
+	}
+
+	if needBootstrap {
 		if err := c.Bootstrap(ctx); err != nil {
-			// Stale Chrome session: one auto re-extract attempt.
 			out.Debugf("bootstrap failed (%v) — re-extracting cookies", err)
 			ck, e2 := auth.ExtractCookies(ctx, cfg.ChromeProfile, cacheDir, os.Stderr)
 			if e2 != nil {
@@ -104,21 +129,10 @@ func session(ctx context.Context) (*client.Client, *config.Config, string, error
 		}
 		cfg.Bearer, cfg.UserHash = c.Bearer, c.UserHash
 		cfg.BearerSavedAt = time.Now().UTC().Format(time.RFC3339)
-		_ = cfg.Save(cfgPath)
-	} else {
-		c.Bearer, c.UserHash = cfg.Bearer, cfg.UserHash
-		// Opportunistic keep-warm: past ~half the bearer life, proactively
-		// renew the session server-side so an idle-but-alive session doesn't
-		// lapse between uses. Best-effort — a hard-dead session is still
-		// caught reactively with the proper reconnect message (cannot beat a
-		// hard server expiry; this only extends a still-alive session).
-		if t, e := time.Parse(time.RFC3339, cfg.BearerSavedAt); e == nil && time.Since(t) > 12*time.Hour {
-			out.Debugf("bearer âgé de ~%s — refresh proactif (keep-warm)", time.Since(t).Round(time.Hour))
-			if err := c.Refresh(ctx); err == nil {
-				cfg.BearerSavedAt = time.Now().UTC().Format(time.RFC3339)
-				_ = cfg.Save(cfgPath)
-			}
+		if exp := c.BearerExp(); !exp.IsZero() {
+			cfg.BearerExp = exp.Format(time.RFC3339)
 		}
+		_ = cfg.Save(cfgPath)
 	}
 	return c, cfg, cfgPath, nil
 }
