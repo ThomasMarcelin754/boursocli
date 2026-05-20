@@ -28,8 +28,8 @@ func newOrdOrdersCmd() *cobra.Command {
 		if err != nil {
 			return out.Fail(err)
 		}
-		if a.urlKind() != "ord" {
-			return out.Fail(fmt.Errorf("le compte %s est de type %q, pas 'ord' — ord-orders est réservé à ORD", a.AccountKey, a.urlKind()))
+		if kind := a.urlKind(); kind != "ord" && kind != "pea" {
+			return out.Fail(fmt.Errorf("le compte %s est de type %q, pas 'ord' ni 'pea'", a.AccountKey, kind))
 		}
 		resource := fmt.Sprintf("trading/orderdetail/orders/%s?page=%d", a.AccountKey, page)
 		body, handled, err := getJSON(ctx, cl, resource)

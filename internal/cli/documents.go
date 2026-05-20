@@ -22,12 +22,12 @@ func newDocumentsCmd() *cobra.Command {
 		}
 		var path string
 		switch a.urlKind() {
-		case "ord":
-			path = "/compte/ord/" + a.AccountKey + "/documents"
+		case "ord", "pea":
+			path = "/compte/" + a.urlKind() + "/" + a.AccountKey + "/documents"
 		case "cav":
 			path = "/compte/cav/" + a.AccountKey + "/releves"
 		default:
-			return out.Fail(fmt.Errorf("le type de compte %q n'a pas de page documents (utiliser un compte cav ou ord)", a.urlKind()))
+			return out.Fail(fmt.Errorf("le type de compte %q n'a pas de page documents (utiliser un compte cav, ord ou pea)", a.urlKind()))
 		}
 		doc, err := getHTML(ctx, cl, path)
 		if err != nil {

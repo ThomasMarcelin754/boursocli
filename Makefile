@@ -5,7 +5,7 @@ GORELEASER  := go run github.com/goreleaser/goreleaser/v2@latest
 .PHONY: build test vet fmt lint vulncheck sec check release-check snapshot docker homebrew
 
 build:
-	go build ./...
+	go build -o boursocli ./cmd/boursocli
 
 test:
 	go test ./... -race

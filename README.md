@@ -42,8 +42,9 @@ docker run --rm -v "$HOME/Library/Application Support/boursocli:/cfg:ro" \
 ```
 Aucun secret n'est intégré à l'image — les identifiants sont montés au runtime.
 
-Nécessite **Go ≥ 1.25.10**. Le chemin d'auth requiert aussi **Node + npm**
-une fois (installation unique de `chrome-cookies-secure`) et **Chrome
+Nécessite **Go ≥ 1.21** (avec `GOTOOLCHAIN=auto`, le défaut, Go télécharge
+automatiquement la toolchain 1.25.10 requise par `go.mod`). Le chemin d'auth requiert aussi **Node + npm**
+une fois (installation unique de `@steipete/sweet-cookie`) et **Chrome
 connecté à BoursoBank** — voir Authentification.
 
 ## Authentification (sans mot de passe, sans secret d'environnement)

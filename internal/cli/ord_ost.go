@@ -26,10 +26,11 @@ func newOrdOstCmd() *cobra.Command {
 		if err != nil {
 			return out.Fail(err)
 		}
-		if a.urlKind() != "ord" {
-			return out.Fail(fmt.Errorf("le compte %s est de type %q, pas 'ord'", a.AccountKey, a.urlKind()))
+		kind := a.urlKind()
+		if kind != "ord" && kind != "pea" {
+			return out.Fail(fmt.Errorf("le compte %s est de type %q, pas 'ord' ni 'pea'", a.AccountKey, kind))
 		}
-		doc, err := getHTML(ctx, cl, "/compte/ord/"+a.AccountKey+"/ost")
+		doc, err := getHTML(ctx, cl, "/compte/"+kind+"/"+a.AccountKey+"/ost")
 		if err != nil {
 			return out.Fail(err)
 		}

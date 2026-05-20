@@ -28,10 +28,11 @@ func newOrdFiscaliteCmd() *cobra.Command {
 		if err != nil {
 			return out.Fail(err)
 		}
-		if a.urlKind() != "ord" {
-			return out.Fail(fmt.Errorf("le compte %s est de type %q, pas 'ord'", a.AccountKey, a.urlKind()))
+		kind := a.urlKind()
+		if kind != "ord" && kind != "pea" {
+			return out.Fail(fmt.Errorf("le compte %s est de type %q, pas 'ord' ni 'pea'", a.AccountKey, kind))
 		}
-		path := fmt.Sprintf("/compte/ord/%s/fiscalite?FiscalityFiltersType%%5BfiscalYear%%5D=%s", a.AccountKey, year)
+		path := fmt.Sprintf("/compte/%s/%s/fiscalite?FiscalityFiltersType%%5BfiscalYear%%5D=%s", kind, a.AccountKey, year)
 		doc, err := getHTML(ctx, cl, path)
 		if err != nil {
 			return out.Fail(err)

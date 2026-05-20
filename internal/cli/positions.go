@@ -56,10 +56,11 @@ func newPositionsCmd() *cobra.Command {
 		if err != nil {
 			return out.Fail(err)
 		}
-		if a.urlKind() != "ord" {
-			return out.Fail(fmt.Errorf("le compte %s est de type %q, pas 'ord' — positions est réservé à ORD. %s", a.AccountKey, a.urlKind(), "choisir un compte ord"))
+		kind := a.urlKind()
+		if kind != "ord" && kind != "pea" {
+			return out.Fail(fmt.Errorf("le compte %s est de type %q, pas 'ord' ni 'pea'", a.AccountKey, kind))
 		}
-		doc, err := getHTML(ctx, cl, "/compte/ord/"+a.AccountKey+"/positions")
+		doc, err := getHTML(ctx, cl, "/compte/"+kind+"/"+a.AccountKey+"/positions")
 		if err != nil {
 			return out.Fail(err)
 		}

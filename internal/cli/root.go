@@ -59,7 +59,7 @@ func buildRoot() *cobra.Command {
 		newCardCmd(), newSepaCmd(), newQuoteCmd(),
 		newOrderbookCmd(), newTopflopCmd(), newMessagesCmd(),
 		newProfileCmd(), newRecipientsCmd(),
-		newVersionCmd(),
+		newDocsCmd(), newVersionCmd(),
 	)
 	return root
 }

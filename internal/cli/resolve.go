@@ -63,12 +63,12 @@ func resolveAccounts(ctx context.Context) (*client.Client, []acct, []byte, error
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	body, status, err := cl.API(ctx, "bank/account/accounts")
+	body, handled, err := getJSON(ctx, cl, "bank/account/accounts")
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	if status != 200 {
-		return nil, nil, nil, fmt.Errorf("bank/account/accounts → HTTP %d : %s", status, snippet(body))
+	if handled {
+		return nil, nil, nil, fmt.Errorf("bank/account/accounts : réponse inattendue (non-200 traitée)")
 	}
 	var accs []acct
 	if err := json.Unmarshal(body, &accs); err != nil {

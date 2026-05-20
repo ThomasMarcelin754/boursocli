@@ -65,6 +65,9 @@ func getJSON(ctx context.Context, cl *client.Client, resource string) ([]byte, b
 		if e.Code == 10006 && strings.HasPrefix(resource, "trading/") {
 			return nil, false, fmt.Errorf("%s → 10006 %q : la session n’est PAS élevée bourse (ce n’est PAS un mur permanent). Ouvrir l’espace Bourse/ORD dans le Chrome connecté pour élever le jar .boursorama.com, puis réessayer", resource, e.Message)
 		}
+		if e.Code == 10006 {
+			return nil, false, fmt.Errorf("session BoursoBank expirée — se reconnecter dans Chrome (clients.boursobank.com, cocher « Se souvenir de moi »), puis relancer avec --refresh")
+		}
 		return nil, false, fmt.Errorf("%s → erreur API code %d : %s (HTTP %d)", resource, e.Code, e.Message, status)
 	}
 	if status != 200 {
