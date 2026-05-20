@@ -49,4 +49,3 @@ func newProfileCmd() *cobra.Command {
 	}
 	return c
 }
-

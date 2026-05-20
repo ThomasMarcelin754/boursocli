@@ -10,6 +10,10 @@ config.json
 # goreleaser output (binaries, archives, checksums, SBOMs)
 /dist/
 
+# Infra / session-measurement tooling (manipulates live cookies, logs contain secrets)
+scripts/measure-session-ttl.sh
+scripts/session-ttl.log
+
 # Go
 *.test
 *.out

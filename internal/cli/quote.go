@@ -50,7 +50,10 @@ func newQuoteCmd() *cobra.Command {
 					merged["analysis"] = an
 				}
 			}
-			j, _ := json.Marshal(merged)
+			j, err := json.Marshal(merged)
+			if err != nil {
+				return err
+			}
 			return out.Raw(j)
 		}
 
