@@ -27,7 +27,7 @@ destinée à un usage général.
   URLs à jeton unique jamais réessayées (`CookieOnce`).
 - Distribution Homebrew (parité avec le CLI Go de référence) :
   `scripts/release-homebrew.sh` manuel + playbook
-  `docs/releasing-homebrew.md` + template `Formula/boursobank.rb` (copie
+  `docs/releasing-homebrew.md` + template `Formula/boursocli.rb` (copie
   vivante dans un repo `homebrew-tap` séparé). `make homebrew VERSION=x`.
   Volontairement PAS de npm/npx (binaire Go → canaux natifs ; wrapper npm =
   surface supply-chain inutile).

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/thomasmarcelin754/boursobank/internal/out"
+	"github.com/thomasmarcelin754/boursocli/internal/out"
 )
 
 // newOrdOrdersCmd: Bearer trading/orderdetail/orders/<ordAccountKey>.

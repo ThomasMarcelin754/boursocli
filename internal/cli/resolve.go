@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/thomasmarcelin754/boursobank/internal/client"
-	"github.com/thomasmarcelin754/boursobank/internal/out"
+	"github.com/thomasmarcelin754/boursocli/internal/client"
+	"github.com/thomasmarcelin754/boursocli/internal/out"
 )
 
 // acct holds ONLY the fields needed for account selection + the table view.

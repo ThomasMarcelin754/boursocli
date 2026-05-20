@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/thomasmarcelin754/boursobank/internal/cli"
+	"github.com/thomasmarcelin754/boursocli/internal/cli"
 )
 
 func main() {

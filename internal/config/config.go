@@ -34,7 +34,7 @@ func Path(override string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "boursobank", "config.json"), nil
+	return filepath.Join(dir, "boursocli", "config.json"), nil
 }
 
 func Load(path string) (*Config, error) {

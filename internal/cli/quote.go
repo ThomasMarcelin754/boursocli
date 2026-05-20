@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/thomasmarcelin754/boursobank/internal/out"
+	"github.com/thomasmarcelin754/boursocli/internal/out"
 )
 
 func newQuoteCmd() *cobra.Command {

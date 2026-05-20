@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/thomasmarcelin754/boursobank/internal/client"
-	"github.com/thomasmarcelin754/boursobank/internal/htmlx"
+	"github.com/thomasmarcelin754/boursocli/internal/client"
+	"github.com/thomasmarcelin754/boursocli/internal/htmlx"
 )
 
 const cookieBase = "https://clients.boursobank.com"

@@ -6,8 +6,8 @@
 # there is no macOS Keychain / login keyring, so the auto-auth path will NOT
 # work for a macOS host. Practical container use:
 #   - run the READ commands with a pre-obtained, valid config.json mounted:
-#       docker run --rm -v "$HOME/Library/Application Support/boursobank:/cfg" \
-#         boursobank --config /cfg/config.json accounts
+#       docker run --rm -v "$HOME/Library/Application Support/boursocli:/cfg" \
+#         boursocli --config /cfg/config.json accounts
 #   - or mount a Linux Chrome 'Cookies' DB and use --chrome-profile.
 # No secret is baked into the image; credentials are always mounted at runtime.
 
@@ -21,15 +21,15 @@ ARG COMMIT=none
 ARG DATE=unknown
 RUN CGO_ENABLED=0 go build -trimpath \
     -ldflags "-s -w \
-      -X github.com/thomasmarcelin754/boursobank/internal/version.Version=${VERSION} \
-      -X github.com/thomasmarcelin754/boursobank/internal/version.Commit=${COMMIT} \
-      -X github.com/thomasmarcelin754/boursobank/internal/version.Date=${DATE}" \
-    -o /out/boursobank ./cmd/boursobank
+      -X github.com/thomasmarcelin754/boursocli/internal/version.Version=${VERSION} \
+      -X github.com/thomasmarcelin754/boursocli/internal/version.Commit=${COMMIT} \
+      -X github.com/thomasmarcelin754/boursocli/internal/version.Date=${DATE}" \
+    -o /out/boursocli ./cmd/boursocli
 
 FROM node:22-slim
 RUN useradd -m app
-COPY --from=build /out/boursobank /usr/local/bin/boursobank
+COPY --from=build /out/boursocli /usr/local/bin/boursocli
 USER app
 WORKDIR /home/app
-ENTRYPOINT ["boursobank"]
+ENTRYPOINT ["boursocli"]
 CMD ["--help"]

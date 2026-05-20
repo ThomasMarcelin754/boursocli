@@ -13,7 +13,7 @@ func TestPathOverride(t *testing.T) {
 	if p, _ := Path("/x/y.json"); p != "/x/y.json" {
 		t.Fatalf("override ignored: %s", p)
 	}
-	if p, err := Path(""); err != nil || !strings.HasSuffix(p, filepath.Join("boursobank", "config.json")) {
+	if p, err := Path(""); err != nil || !strings.HasSuffix(p, filepath.Join("boursocli", "config.json")) {
 		t.Fatalf("default path wrong: %s %v", p, err)
 	}
 }

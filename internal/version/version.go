@@ -13,7 +13,7 @@ var (
 
 // String is the human one-liner (root --version).
 func String() string {
-	return fmt.Sprintf("boursobank %s (commit %s, built %s)", Version, Commit, Date)
+	return fmt.Sprintf("boursocli %s (commit %s, built %s)", Version, Commit, Date)
 }
 
 // Info is the agent-first JSON shape (the `version` command).

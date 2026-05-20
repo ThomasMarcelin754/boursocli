@@ -12,9 +12,9 @@ if [[ -z "${version}" ]]; then
 fi
 version="${version#v}" # accept v0.1.0 or 0.1.0
 
-repo="thomasmarcelin754/boursobank"
+repo="thomasmarcelin754/boursocli"
 url="https://github.com/${repo}/archive/refs/tags/v${version}.tar.gz"
-tmp="$(mktemp -t boursobank-XXXXXX).tar.gz"
+tmp="$(mktemp -t boursocli-XXXXXX).tar.gz"
 trap 'rm -f "${tmp}"' EXIT
 
 curl -fL -o "${tmp}" "${url}" >/dev/null

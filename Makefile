@@ -37,7 +37,7 @@ snapshot:
 	$(GORELEASER) release --snapshot --clean --skip=publish
 
 docker:
-	docker build -t boursobank:dev .
+	docker build -t boursocli:dev .
 
 # Print Homebrew formula fields for a tag: make homebrew VERSION=0.1.0
 homebrew:

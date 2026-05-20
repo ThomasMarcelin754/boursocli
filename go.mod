@@ -1,4 +1,4 @@
-module github.com/thomasmarcelin754/boursobank
+module github.com/thomasmarcelin754/boursocli
 
 go 1.25.10
 

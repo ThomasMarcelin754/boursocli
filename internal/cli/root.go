@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/thomasmarcelin754/boursobank/internal/auth"
-	"github.com/thomasmarcelin754/boursobank/internal/client"
-	"github.com/thomasmarcelin754/boursobank/internal/config"
-	"github.com/thomasmarcelin754/boursobank/internal/out"
-	"github.com/thomasmarcelin754/boursobank/internal/version"
+	"github.com/thomasmarcelin754/boursocli/internal/auth"
+	"github.com/thomasmarcelin754/boursocli/internal/client"
+	"github.com/thomasmarcelin754/boursocli/internal/config"
+	"github.com/thomasmarcelin754/boursocli/internal/out"
+	"github.com/thomasmarcelin754/boursocli/internal/version"
 )
 
 var (
@@ -32,7 +32,7 @@ func ExecuteContext(ctx context.Context) error {
 
 func buildRoot() *cobra.Command {
 	root := &cobra.Command{
-		Use:           "boursobank",
+		Use:           "boursocli",
 		Short:         "CLI agent-first pour un compte BoursoBank personnel (lecture + virement assisté).",
 		Version:       version.String(),
 		SilenceUsage:  true,

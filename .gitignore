@@ -4,8 +4,8 @@ config.json
 .env
 
 # Built binary
-/boursobank
-/cmd/boursobank/boursobank
+/boursocli
+/cmd/boursocli/boursocli
 
 # goreleaser output (binaries, archives, checksums, SBOMs)
 /dist/
@@ -17,6 +17,9 @@ scripts/session-ttl.log
 # Go
 *.test
 *.out
+
+# Node (sweet-cookie runtime cache)
+node_modules/
 
 # macOS
 .DS_Store

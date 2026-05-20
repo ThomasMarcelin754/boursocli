@@ -2,7 +2,7 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/thomasmarcelin754/boursobank/internal/out"
+	"github.com/thomasmarcelin754/boursocli/internal/out"
 )
 
 // newOperationsCmd: Bearer bank/account/operations/<accountKey>.

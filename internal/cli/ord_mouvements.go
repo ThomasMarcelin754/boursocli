@@ -6,8 +6,8 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/spf13/cobra"
-	"github.com/thomasmarcelin754/boursobank/internal/htmlx"
-	"github.com/thomasmarcelin754/boursobank/internal/out"
+	"github.com/thomasmarcelin754/boursocli/internal/htmlx"
+	"github.com/thomasmarcelin754/boursocli/internal/out"
 )
 
 func newOrdMouvementsCmd() *cobra.Command {

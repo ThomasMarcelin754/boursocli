@@ -1,14 +1,14 @@
 version: 2
 
-project_name: boursobank
+project_name: boursocli
 
 changelog:
   disable: true # CHANGELOG.md is hand-curated
 
 builds:
-  - id: boursobank
-    main: ./cmd/boursobank
-    binary: boursobank
+  - id: boursocli
+    main: ./cmd/boursocli
+    binary: boursocli
     env:
       - CGO_ENABLED=0 # static, no libc — portable binaries
     targets:
@@ -20,12 +20,12 @@ builds:
       - windows_arm64
     ldflags:
       - -s -w
-      - -X github.com/thomasmarcelin754/boursobank/internal/version.Version={{ .Version }}
-      - -X github.com/thomasmarcelin754/boursobank/internal/version.Commit={{ .ShortCommit }}
-      - -X github.com/thomasmarcelin754/boursobank/internal/version.Date={{ .Date }}
+      - -X github.com/thomasmarcelin754/boursocli/internal/version.Version={{ .Version }}
+      - -X github.com/thomasmarcelin754/boursocli/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/thomasmarcelin754/boursocli/internal/version.Date={{ .Date }}
 
 archives:
-  - ids: [boursobank]
+  - ids: [boursocli]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
@@ -69,10 +69,10 @@ release:
 #       name: homebrew-tap
 #       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
 #     directory: Formula
-#     homepage: "https://github.com/thomasmarcelin754/boursobank"
+#     homepage: "https://github.com/thomasmarcelin754/boursocli"
 #     description: "Agent-first CLI for a personal BoursoBank account"
 #     license: "MIT"
 #     install: |
-#       bin.install "boursobank"
+#       bin.install "boursocli"
 #     test: |
-#       system "#{bin}/boursobank", "version"
+#       system "#{bin}/boursocli", "version"

@@ -1,4 +1,4 @@
-# boursobank
+# 🏦 boursocli
 
 CLI agent-first pour un compte BoursoBank (ex-Boursorama Banque)
 **personnel**. Orienté lecture ; le virement assisté (prévu) est
@@ -14,16 +14,16 @@ jamais l'authentification forte**.
 ```sh
 # Homebrew (macOS/Linux) — build depuis les sources, tire Go + Node :
 brew tap thomasmarcelin754/tap
-brew install thomasmarcelin754/tap/boursobank
+brew install thomasmarcelin754/tap/boursocli
 
 # ou Go :
-go install github.com/thomasmarcelin754/boursobank/cmd/boursobank@latest
+go install github.com/thomasmarcelin754/boursocli/cmd/boursocli@latest
 
 # ou un binaire de release (goreleaser : darwin/linux/windows × amd64/arm64,
 # sans CGO, avec checksums — déclenché au tag via .github/workflows/release.yml)
 
 # ou depuis les sources :
-git clone … && cd boursobank && make build && ./boursobank --help
+git clone … && cd boursocli && make build && ./boursocli --help
 ```
 
 Canaux d'installation : Homebrew (tap) · `go install` · binaires de release ·
@@ -37,8 +37,8 @@ déchiffre le keychain de l'OS *hôte* — indisponible dans un conteneur.
 À utiliser pour les commandes de lecture avec un `config.json` valide monté :
 
 ```sh
-docker run --rm -v "$HOME/Library/Application Support/boursobank:/cfg:ro" \
-  boursobank:dev --config /cfg/config.json accounts
+docker run --rm -v "$HOME/Library/Application Support/boursocli:/cfg:ro" \
+  boursocli:dev --config /cfg/config.json accounts
 ```
 Aucun secret n'est intégré à l'image — les identifiants sont montés au runtime.
 
@@ -48,7 +48,7 @@ connecté à BoursoBank** — voir Authentification.
 
 ## Authentification (sans mot de passe, sans secret d'environnement)
 
-`boursobank` ne demande jamais votre mot de passe et **ne lit aucun secret
+`boursocli` ne demande jamais votre mot de passe et **ne lit aucun secret
 depuis l'environnement ni un `.env`**. Il extrait la session BoursoBank
 *existante* depuis votre profil **Chrome** local (cookies déchiffrés via le
 keychain de l'OS, bi-domaine `clients.boursobank.com` +
@@ -76,7 +76,7 @@ indolore, via le mécanisme prévu par la banque :
 2. **Profil Chrome dédié et stable** (utilisé seulement pour BoursoBank, jamais
    nettoyé) : le `rememberme` y survit longtemps. Épinglez-le une fois :
    ```sh
-   boursobank config set chrome_profile "Profile 9"   # nom ou chemin
+   boursocli config set chrome_profile "Profile 9"   # nom ou chemin
    ```
 3. **Sans profil épinglé**, le CLI **auto-sélectionne** le profil dont la
    session BoursoBank est la plus fraîche (scan de tous les profils Chrome,
@@ -93,19 +93,19 @@ stderr, code de sortie `0`/`1`. `--format table` pour les humains,
 `--quiet`/`--debug`.
 
 ```sh
-boursobank accounts                      # comptes + soldes (JSON)
-boursobank accounts --format table
-boursobank operations --account cav      # opés récentes (Bearer, 30 plus récentes)
-boursobank export --account cav --out ops.csv   # historique complet CSV
-boursobank positions --account ord       # portefeuille titres
-boursobank ord-orders --account ord
-boursobank ord-fiscalite --account ord --year 2026
-boursobank documents --account ord       # relevés / relevés CAV
-boursobank ord-ost --account ord
-boursobank transfers --account cav
-boursobank budgets ; boursobank budget-movements --account cav
-boursobank incidents --account cav
-boursobank version ; boursobank --version
+boursocli accounts                      # comptes + soldes (JSON)
+boursocli accounts --format table
+boursocli operations --account cav      # opés récentes (Bearer, 30 plus récentes)
+boursocli export --account cav --out ops.csv   # historique complet CSV
+boursocli positions --account ord       # portefeuille titres
+boursocli ord-orders --account ord
+boursocli ord-fiscalite --account ord --year 2026
+boursocli documents --account ord       # relevés / relevés CAV
+boursocli ord-ost --account ord
+boursocli transfers --account cav
+boursocli budgets ; boursocli budget-movements --account cav
+boursocli incidents --account cav
+boursocli version ; boursocli --version
 ```
 
 `--account` prend un `accountKey` (32-hex) ou un type : `cav` | `ord` |
