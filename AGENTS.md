@@ -37,9 +37,20 @@ make check   # fmt vet test lint vulncheck — full pre-commit gate
   off — never re-authenticate in a loop.
 - Never commit secrets (cookies, tokens, IBANs, account keys).
 
+## Install
+
+```
+brew install --cask thomasmarcelin754/tap/boursocli   # macOS (pre-built)
+go install github.com/thomasmarcelin754/boursocli/cmd/boursocli@latest  # Go devs
+```
+
+Release: tag push → goreleaser `homebrew_casks:` auto-pushes Cask to
+`ThomasMarcelin754/homebrew-tap`.
+
 ## Status
 
-21 read commands built and validated on a live account (2026-05-20).
-Production tooling in place: CI, golangci-lint+gosec, govulncheck,
-goreleaser (6 platforms), Dockerfile, unit tests with per-package
-coverage floors. Not yet built: assisted `virement` (write, under SCA).
+24 read commands built, published (v0.1.1) and validated on a live account
+(2026-05-22). Production tooling in place: CI, golangci-lint+gosec,
+govulncheck, goreleaser (6 platforms, SBOM, cosign), Homebrew Cask auto-tap,
+Dockerfile, unit tests with per-package coverage floors.
+Not yet built: assisted `virement` (write, under SCA).
