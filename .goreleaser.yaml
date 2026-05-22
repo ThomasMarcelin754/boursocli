@@ -57,22 +57,24 @@ release:
   # No secrets in artifacts; the binary holds only build metadata.
   prerelease: auto
 
-# Homebrew distribution is INTENTIONALLY manual here (paste 3 fields into the
-# separate tap repo via scripts/release-homebrew.sh — see
-# docs/releasing-homebrew.md). Enabling goreleaser `brews:` flips that
-# documented decision and needs a HOMEBREW_TAP_TOKEN secret + write access to
-# thomasmarcelin754/homebrew-tap. Left disabled on purpose; uncomment and wire
-# the token ONLY if the distribution model is deliberately changed.
-# brews:
-#   - repository:
-#       owner: thomasmarcelin754
-#       name: homebrew-tap
-#       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-#     directory: Formula
-#     homepage: "https://github.com/thomasmarcelin754/boursocli"
-#     description: "Agent-first CLI for a personal BoursoBank account"
-#     license: "MIT"
-#     install: |
-#       bin.install "boursocli"
-#     test: |
-#       system "#{bin}/boursocli", "version"
+homebrew_casks:
+  - name: boursocli
+    binaries:
+      - boursocli
+    homepage: "https://github.com/thomasmarcelin754/boursocli"
+    description: "Agent-first CLI for a personal BoursoBank account"
+    license: "MIT"
+    skip_upload: auto
+    dependencies:
+      - formula: node
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/boursocli"]
+          end
+    repository:
+      owner: thomasmarcelin754
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Casks
