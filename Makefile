@@ -2,7 +2,7 @@ GOLANGCI    := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@lat
 GOVULNCHECK := go run golang.org/x/vuln/cmd/govulncheck@latest
 GORELEASER  := go run github.com/goreleaser/goreleaser/v2@latest
 
-.PHONY: build test vet fmt lint vulncheck sec check release-check snapshot docker homebrew
+.PHONY: build test vet fmt lint vulncheck sec check release-check snapshot docker
 
 build:
 	go build -o boursocli ./cmd/boursocli
@@ -38,10 +38,6 @@ snapshot:
 
 docker:
 	docker build -t boursocli:dev .
-
-# Print Homebrew formula fields for a tag: make homebrew VERSION=0.1.0
-homebrew:
-	scripts/release-homebrew.sh $(VERSION)
 
 # Full pre-commit gate.
 check: fmt vet test lint vulncheck
