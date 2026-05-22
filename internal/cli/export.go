@@ -13,7 +13,7 @@ import (
 )
 
 // exact 11-col CSV header — the contract.
-const csvHeader = "dateOp;dateVal;label;category;categoryParent;supplierFound;amount;comment;accountNum;accountLabel;accountbalance"
+const csvHeader = "dateOp;dateVal;label;suggestedLabel;category;categoryParent;amount;comment;accountNum;accountLabel;accountbalance"
 
 var csvBOM = []byte{0xEF, 0xBB, 0xBF}
 
